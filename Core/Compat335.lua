@@ -329,6 +329,145 @@ if not _G.GetPhysicalScreenSize then
 end
 
 --------------------------------------------------------------
+-- Unit / group API added after 3.3.5
+--------------------------------------------------------------
+
+if not _G.ShowBossFrameWhenUninteractable then
+	_G.ShowBossFrameWhenUninteractable = function() return false end
+end
+
+if not _G.UnitSelectionType then
+	_G.UnitSelectionType = function() return nil end
+end
+
+if not _G.UnitGetTotalAbsorbs then
+	_G.UnitGetTotalAbsorbs = function() return 0 end
+	_G.UnitGetTotalHealAbsorbs = function() return 0 end
+end
+
+if not _G.UnitGetIncomingHeals then
+	_G.UnitGetIncomingHeals = function() return 0 end
+end
+
+if not _G.UnitHasIncomingResurrection then
+	_G.UnitHasIncomingResurrection = function() return false end
+end
+
+if not _G.UnitIsMercenary then
+	_G.UnitIsMercenary = function() return false end
+end
+
+if not _G.UnitHonorLevel then
+	_G.UnitHonorLevel = function() return 0 end
+end
+
+if not _G.UnitPhaseReason then
+	_G.UnitPhaseReason = function(unit)
+		if UnitInPhase and not UnitInPhase(unit) then
+			return 1
+		end
+		return nil
+	end
+end
+
+if not _G.GetUnitPowerBarInfo then
+	_G.GetUnitPowerBarInfo = function() return nil end
+end
+
+if not _G.UnitPowerDisplayMod then
+	_G.UnitPowerDisplayMod = function() return 1 end
+end
+
+if not _G.GetFriendshipReputation then
+	_G.GetFriendshipReputation = function() return nil end
+end
+
+-- group APIs (4.0 renamed the whole family)
+if not _G.IsInRaid then
+	_G.IsInRaid = function()
+		return GetNumRaidMembers() > 0
+	end
+end
+
+if not _G.IsInGroup then
+	_G.IsInGroup = function()
+		return GetNumRaidMembers() > 0 or GetNumPartyMembers() > 0
+	end
+end
+
+if not _G.GetNumGroupMembers then
+	_G.GetNumGroupMembers = function()
+		local raid = GetNumRaidMembers()
+		if raid > 0 then return raid end
+		local party = GetNumPartyMembers()
+		return party > 0 and (party + 1) or 0
+	end
+end
+
+if not _G.GetNumSubgroupMembers then
+	_G.GetNumSubgroupMembers = function()
+		return GetNumPartyMembers()
+	end
+end
+
+if not _G.UnitIsGroupLeader then
+	_G.UnitIsGroupLeader = function(unit)
+		unit = unit or "player"
+		if GetNumRaidMembers() > 0 then
+			local name = UnitName(unit)
+			for i = 1, GetNumRaidMembers() do
+				local rname, rank = GetRaidRosterInfo(i)
+				if rname == name then
+					return rank == 2
+				end
+			end
+			return false
+		end
+		if UnitIsUnit(unit, "player") then
+			return IsPartyLeader() and true or false
+		end
+		local leader = GetPartyLeaderIndex()
+		return leader and leader > 0 and UnitIsUnit(unit, "party" .. leader) or false
+	end
+end
+
+if not _G.UnitIsGroupAssistant then
+	_G.UnitIsGroupAssistant = function(unit)
+		unit = unit or "player"
+		if GetNumRaidMembers() > 0 then
+			local name = UnitName(unit)
+			for i = 1, GetNumRaidMembers() do
+				local rname, rank = GetRaidRosterInfo(i)
+				if rname == name then
+					return rank == 1
+				end
+			end
+		end
+		return false
+	end
+end
+
+-- 3.3.5 returns (isTank, isHealer, isDamage); modern returns a role string
+do
+	local _UnitGroupRolesAssigned = UnitGroupRolesAssigned
+	if _UnitGroupRolesAssigned then
+		_G.UnitGroupRolesAssigned = function(unit)
+			local isTank, isHealer, isDamage = _UnitGroupRolesAssigned(unit)
+			if type(isTank) == "string" then
+				-- already modern signature somehow, pass through
+				return isTank
+			end
+			if isTank then return "TANK" end
+			if isHealer then return "HEALER" end
+			if isDamage then return "DAMAGER" end
+			return "NONE"
+		end
+	else
+		_G.UnitGroupRolesAssigned = function() return "NONE" end
+	end
+end
+
+--------------------------------------------------------------
 -- UnitAura family: drop the 3.3.5 "rank" second return so the
 -- modern signature (name, icon, count, ...) lines up
 --------------------------------------------------------------
