@@ -20,6 +20,7 @@ FontStyles_Classic.xml
 # 3.3.5 compatibility layer
 Core\Compat335.lua
 Core\Log335.lua
+Core\Fix335.lua
 
 # Protect the environment
 Core\Private.lua
