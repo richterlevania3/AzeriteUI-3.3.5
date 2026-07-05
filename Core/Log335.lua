@@ -218,3 +218,41 @@ SlashCmdList["AZLOG"] = function(input)
 		chat("no errors recorded")
 	end
 end
+
+--------------------------------------------------------------
+-- Bar visibility diagnostics (login+10s)
+--------------------------------------------------------------
+
+local barscanner = CreateFrame("Frame")
+barscanner:RegisterEvent("PLAYER_LOGIN")
+barscanner:SetScript("OnEvent", function(self)
+	if not (C_Timer and C_Timer.After) then return end
+	C_Timer.After(10, function()
+		-- environment probes
+		local parse = SecureCmdOptionParse and SecureCmdOptionParse("[petbattle]hide;show") or "no-parser"
+		log("BARSCAN", "SecureCmdOptionParse('[petbattle]hide;show') = " .. tostring(parse))
+
+		-- does OnAttributeChanged fire for SetAttribute at all?
+		local probe = CreateFrame("Frame")
+		local fired = "no"
+		probe:HookScript("OnAttributeChanged", function() fired = "yes" end)
+		probe:SetAttribute("state-vis", "test")
+		log("BARSCAN", "HookScript OnAttributeChanged fires on SetAttribute: " .. fired)
+
+		local mod = ns.GetModule and ns:GetModule("ActionBars", true)
+		local bars = mod and mod.bars
+		if not bars then
+			log("BARSCAN", "no ActionBars module or bars table")
+			return
+		end
+		for id, bar in pairs(bars) do
+			log("BARSCAN", string.format("bar %s: shown=%s alpha=%.2f statevis=%s vis=%s statepage=%s userhidden=%s enabled=%s",
+				tostring(id), tostring(bar:IsShown()), bar:GetAlpha() or -1,
+				tostring(bar:GetAttribute("state-vis")),
+				tostring(bar:GetAttribute("visibility")),
+				tostring(bar:GetAttribute("state-page")),
+				tostring(bar:GetAttribute("userhidden")),
+				tostring(bar.config and bar.config.enabled)))
+		end
+	end)
+end)

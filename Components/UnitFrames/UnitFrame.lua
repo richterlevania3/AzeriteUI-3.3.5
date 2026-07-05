@@ -149,6 +149,7 @@ ns.UnitFrameModule = ns:Merge({
 		end
 
 		local unitframe, anchor = self:GetUnitFrameOrHeader(), self:GetAnchor()
+		if (not unitframe) then return end
 
 		local config = self.db.profile
 		if (config.enabled) then
@@ -207,6 +208,7 @@ ns.UnitFrameModule = ns:Merge({
 	end,
 
 	GetUnitFrameOrHeader = function(self)
+		if (not self.frame) then return nil end
 		return self.frame.content or self.frame
 	end,
 
