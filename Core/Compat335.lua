@@ -979,6 +979,23 @@ function _G.AzeriteUI335_NormalizeButton(button)
 		end
 	end
 
+	-- flyout elements (4.0+); inert stand-ins
+	for _, key in ipairs({ "FlyoutBorder", "FlyoutBorderShadow", "FlyoutArrow" }) do
+		if not button[key] then
+			local tex = button:CreateTexture(nil, "OVERLAY")
+			tex:Hide()
+			button[key] = tex
+		end
+	end
+	if not button.FlyoutArrowContainer then
+		local f = CreateFrame("Frame", nil, button)
+		f:Hide()
+		f.FlyoutArrowNormal = f:CreateTexture(nil, "OVERLAY")
+		f.FlyoutArrowHighlight = f:CreateTexture(nil, "OVERLAY")
+		f.FlyoutArrowPushed = f:CreateTexture(nil, "OVERLAY")
+		button.FlyoutArrowContainer = f
+	end
+
 	return button
 end
 
@@ -1027,3 +1044,48 @@ end
 -- retail strings
 _G.INFO = _G.INFO or "Info"
 _G.TIMEMANAGER_TITLE = _G.TIMEMANAGER_TITLE or "Time"
+
+--------------------------------------------------------------
+-- Round 6 shims
+--------------------------------------------------------------
+
+-- Cooldown widget retail API (swipe/edge/bling, 7.0+); accept and ignore
+do
+	local ok, cd = pcall(CreateFrame, "Cooldown")
+	if ok and cd then
+		local mt = getmetatable(cd)
+		if mt and mt.__index and not mt.__index.SetSwipeTexture then
+			local idx = mt.__index
+			idx.SetSwipeTexture = function() end
+			idx.SetSwipeColor = function() end
+			idx.SetDrawSwipe = function() end
+			idx.SetDrawEdge = function() end
+			idx.SetDrawBling = function() end
+			idx.SetEdgeTexture = function() end
+			idx.SetBlingTexture = function() end
+			idx.SetHideCountdownNumbers = function() end
+			idx.SetUseCircularEdge = function() end
+			idx.GetCooldownDuration = idx.GetCooldownDuration or function() return 0 end
+		end
+	end
+end
+
+-- AlertFrame: exists on 3.3.5 but without the retail subsystem methods
+-- AzeriteUI wants to SecureHook; give it hookable noops
+do
+	if not _G.AlertFrame then
+		_G.AlertFrame = CreateFrame("Frame", "AlertFrame", UIParent)
+		_G.AlertFrame:Hide()
+	end
+	local af = _G.AlertFrame
+	if not af.AddAlertFrameSubSystem then
+		af.AddAlertFrameSubSystem = function() end
+	end
+	if not af.UpdateAnchors then
+		af.UpdateAnchors = function() end
+	end
+end
+
+if not _G.GroupLootContainer_Update then
+	_G.GroupLootContainer_Update = function() end
+end
