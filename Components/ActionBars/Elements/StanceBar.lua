@@ -476,13 +476,29 @@ StanceBarMod.CreateBar = function(self)
 		end
 	]])
 
-	bar:SetAttribute("_onstate-vis", [[
-		if (not newstate) then
-			return
-		end
-		self:SetAttribute("visibility", newstate);
-		self:RunAttribute("UpdateVisibility");
-	]])
+	if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
+		-- Ascension/3.3.5: restricted env cannot run the snippet;
+		-- react to the state driver from plain Lua instead
+		bar:HookScript("OnAttributeChanged", function(self, name, value)
+			if (name == "state-vis") then
+				if (value == "hide") then
+					self:Hide()
+				elseif (value == "show") then
+					if (not self:GetAttribute("userhidden")) then
+						self:Show()
+					end
+				end
+			end
+		end)
+	else
+		bar:SetAttribute("_onstate-vis", [[
+			if (not newstate) then
+				return
+			end
+			self:SetAttribute("visibility", newstate);
+			self:RunAttribute("UpdateVisibility");
+		]])
+	end
 
 	self.bar = bar
 end

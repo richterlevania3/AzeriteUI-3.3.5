@@ -473,7 +473,47 @@ Auras.CreateBuffs = function(self)
 		-----------------------------------------
 		local visibility = CreateFrame("Frame", nil, UIParent, "SecureHandlerStateTemplate")
 		visibility:SetFrameRef("buffs", buffs)
-		visibility:SetAttribute("_onstate-vis", [[ self:RunAttribute("UpdateVisibility"); ]])
+
+		if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
+			-- Lua-side visibility: evaluate the driver directly
+			visibility.UpdateDriverLua = function(self)
+				local visdriver
+				local auramode = self:GetAttribute("auramode")
+				local ignoreTarget = self:GetAttribute("ignoreTarget")
+				if (auramode == "hide") then
+					visdriver = "hide"
+				elseif (auramode == "show") then
+					visdriver = ignoreTarget and "show" or "[@target,exists]hide;show"
+				elseif (auramode == "modifier") then
+					local modifierkey = self:GetAttribute("modifierkey")
+					if (ignoreTarget) then
+						visdriver = "[mod:"..modifierkey.."]show;hide"
+					else
+						visdriver = "[@target,exists]hide;[mod:"..modifierkey.."]show;hide"
+					end
+				end
+				self:SetAttribute("visdriver", visdriver)
+				UnregisterStateDriver(self, "vis")
+				if (visdriver) then
+					RegisterStateDriver(self, "vis", visdriver)
+				end
+			end
+			visibility:HookScript("OnAttributeChanged", function(self, name, value)
+				if (name ~= "state-vis") then return end
+				local visdriver = self:GetAttribute("visdriver")
+				if (not visdriver) then return end
+				local shouldhide = SecureCmdOptionParse(visdriver) == "hide"
+				if (shouldhide and buffs:IsShown()) then
+					buffs:Hide()
+				elseif (not shouldhide and not buffs:IsShown()) then
+					buffs:Show()
+				end
+			end)
+		end
+
+		if not (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
+			visibility:SetAttribute("_onstate-vis", [[ self:RunAttribute("UpdateVisibility"); ]])
+		end
 		visibility:SetAttribute("UpdateVisibility", [[
 			local visdriver = self:GetAttribute("visdriver");
 			if (not visdriver) then
@@ -650,7 +690,11 @@ Auras.UpdateSettings = function(self)
 	self.visibility:SetAttribute("ignoreTarget", config.ignoreTarget)
 	self.visibility:SetAttribute("auramode", not config.enabled and "hide" or config.enableModifier and "modifier" or "show")
 	self.visibility:SetAttribute("modifierkey", string_lower(config.modifier))
-	self.visibility:Execute([[ self:RunAttribute("UpdateDriver"); ]])
+	if (self.visibility.UpdateDriverLua) then
+		self.visibility:UpdateDriverLua()
+	else
+		self.visibility:Execute([[ self:RunAttribute("UpdateDriver"); ]])
+	end
 
 	self:UpdateAnchor()
 end
