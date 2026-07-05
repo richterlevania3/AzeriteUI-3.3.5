@@ -24,6 +24,9 @@
 
 --]]
 local _, ns = ...
+-- keep the default Blizzard chat on legacy clients (user preference;
+-- restyling it also breaks the Ascension chat-delay focus handling)
+if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then return end
 
 if (ns.API.IsAddOnEnabled("Prat-3.0") or ns.API.IsAddOnEnabled("ls_Glass")) then return end
 
