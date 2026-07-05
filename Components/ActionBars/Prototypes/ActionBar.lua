@@ -137,61 +137,79 @@ ns.ActionBar.Create = function(self, id, config, name)
 		end
 	]])
 
-	bar:SetAttribute("_onstate-vis", [[
-		if (not newstate) then
-			return
-		end
-		self:SetAttribute("visibility", newstate);
-		self:RunAttribute("UpdateVisibility");
-	]])
-
-	bar:SetAttribute("_onstate-page", [[
-
-		local hasVehicleBar, hasOverrideBar, hasTempShapeshiftBar, hasPossessBar, isDragonRiding;
-
-		if (newstate == "possess" or newstate == "dragon" or newstate == "11") then
-
-			if HasVehicleActionBar() then
-				newstate = GetVehicleBarIndex();
-				hasVehicleBar = true;
-
-			elseif HasOverrideActionBar() then
-				newstate = GetOverrideBarIndex();
-				hasOverrideBar = true;
-
-			elseif HasTempShapeshiftActionBar() then
-				newstate = GetTempShapeshiftBarIndex();
-				hasTempShapeshiftBar = true;
-
-			elseif HasBonusActionBar() then
-				newstate = GetBonusBarIndex();
-				if (GetBonusBarOffset() == 5) then
-					hasPossessBar = true;
-					if (IsMounted()) then
-						isDragonRiding = true;
-					end
+	if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
+		-- Ascension/3.3.5: the restricted environment cannot run the
+		-- state snippets below. Blizzard's state driver still evaluates
+		-- the conditionals and writes the state attributes, so we react
+		-- to those from plain Lua instead.
+		bar:HookScript("OnAttributeChanged", function(self, name, value)
+			if (name == "state-page") then
+				self:ApplyPageLua(value)
+			elseif (name == "state-vis") then
+				if (value == "hide") then
+					self:Hide()
+				elseif (value == "show") then
+					self:Show()
 				end
-			else
-				newstate = nil;
 			end
+		end)
+	else
+		bar:SetAttribute("_onstate-vis", [[
 			if (not newstate) then
-				newstate = 12;
+				return
 			end
-		end
+			self:SetAttribute("visibility", newstate);
+			self:RunAttribute("UpdateVisibility");
+		]])
 
-		self:SetAttribute("isdragonriding", isDragonRiding);
-		self:SetAttribute("hasvehiclebar", hasVehicleBar);
-		self:SetAttribute("hasoverridebar", hasOverrideBar);
-		self:SetAttribute("hastempshapeshiftbar", hasTempShapeshiftBar);
-		self:SetAttribute("haspossessbar", hasPossessBar);
+		bar:SetAttribute("_onstate-page", [[
 
-		self:CallMethod("UpdateButtonFlags");
+			local hasVehicleBar, hasOverrideBar, hasTempShapeshiftBar, hasPossessBar, isDragonRiding;
 
-		self:SetAttribute("state", newstate);
-		control:ChildUpdate("state", newstate);
+			if (newstate == "possess" or newstate == "dragon" or newstate == "11") then
 
-		self:CallMethod("UpdateFading");
-	]])
+				if HasVehicleActionBar() then
+					newstate = GetVehicleBarIndex();
+					hasVehicleBar = true;
+
+				elseif HasOverrideActionBar() then
+					newstate = GetOverrideBarIndex();
+					hasOverrideBar = true;
+
+				elseif HasTempShapeshiftActionBar() then
+					newstate = GetTempShapeshiftBarIndex();
+					hasTempShapeshiftBar = true;
+
+				elseif HasBonusActionBar() then
+					newstate = GetBonusBarIndex();
+					if (GetBonusBarOffset() == 5) then
+						hasPossessBar = true;
+						if (IsMounted()) then
+							isDragonRiding = true;
+						end
+					end
+				else
+					newstate = nil;
+				end
+				if (not newstate) then
+					newstate = 12;
+				end
+			end
+
+			self:SetAttribute("isdragonriding", isDragonRiding);
+			self:SetAttribute("hasvehiclebar", hasVehicleBar);
+			self:SetAttribute("hasoverridebar", hasOverrideBar);
+			self:SetAttribute("hastempshapeshiftbar", hasTempShapeshiftBar);
+			self:SetAttribute("haspossessbar", hasPossessBar);
+
+			self:CallMethod("UpdateButtonFlags");
+
+			self:SetAttribute("state", newstate);
+			control:ChildUpdate("state", newstate);
+
+			self:CallMethod("UpdateFading");
+		]])
+	end
 
 	for i = 1,NUM_ACTIONBAR_BUTTONS do
 		bar:CreateButton()
@@ -385,6 +403,36 @@ ActionBar.UpdateBindings = function(self)
 			end
 		end
 	end
+end
+
+-- Lua-side replication of the secure _onstate-page snippet for clients
+-- whose restricted environment cannot run it (Ascension 3.3.5).
+ActionBar.ApplyPageLua = function(self, newstate)
+	if (not newstate) then return end
+	newstate = tostring(newstate)
+
+	if (newstate == "possess" or newstate == "dragon" or newstate == "11") then
+		local offset = GetBonusBarOffset and GetBonusBarOffset() or 0
+		if (offset > 0) then
+			newstate = tostring(6 + offset)
+		else
+			newstate = "12"
+		end
+	end
+
+	self:SetAttribute("state", newstate)
+
+	if (self.buttons) then
+		for id, button in next, self.buttons do
+			button:SetAttribute("state", newstate)
+			if (button.UpdateAction) then
+				button:UpdateAction(true)
+			end
+		end
+	end
+
+	if (self.UpdateButtonFlags) then self:UpdateButtonFlags() end
+	if (self.UpdateFading) then self:UpdateFading() end
 end
 
 ActionBar.UpdateStateDriver = function(self)

@@ -328,7 +328,8 @@ end
 Options.OnEvent = function(self, event, ...)
 	if (event == "PLAYER_ENTERING_WORLD") then
 		local isInitialLogin, isReloadingUi = ...
-		if (isInitialLogin or isReloadingUi) then
+		-- 3.3.5 fires this event without arguments
+		if (isInitialLogin or isReloadingUi or isInitialLogin == nil) then
 			self:GenerateOptionsMenu()
 			self:UnregisterEvent("PLAYER_ENTERING_WORLD", "OnEvent")
 		end

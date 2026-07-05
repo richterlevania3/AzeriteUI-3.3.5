@@ -516,12 +516,14 @@ function SetupSecureSnippets(button)
 			if kind ~= "action" or not value then return end
 			if GetCVar("lockActionBars") == "1" and not IsModifiedClick("PICKUPACTION") then return end
 			PickupAction(value)
+			self:UpdateAction(true)
 		end)
 		button:SetScript("OnReceiveDrag", function(self)
 			local kind, value = self:GetAction()
 			if kind ~= "action" or not value then return end
 			if GetCursorInfo() then
 				PlaceAction(value)
+				self:UpdateAction(true)
 			end
 		end)
 		return
@@ -717,14 +719,12 @@ function Generic:UpdateState(state)
 	self:SetAttribute(format("labtype-%s", state), self.state_types[state])
 	self:SetAttribute(format("labaction-%s", state), self.state_actions[state])
 	if state ~= tostring(self:GetAttribute("state")) then return end
-	if self.header then
+	if self.header and not (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
 		self.header:SetFrameRef("updateButton", self)
 		self.header:Execute([[
 			local frame = self:GetFrameRef("updateButton")
 			control:RunFor(frame, frame:GetAttribute("UpdateState"), frame:GetAttribute("state"))
 		]])
-	else
-	-- TODO
 	end
 	self:UpdateAction()
 end
