@@ -255,6 +255,7 @@ function lib:CreateButton(id, name, header, config)
 	end
 
 	local button = setmetatable(CreateFrame("CheckButton", name, header, "SecureActionButtonTemplate, ActionButtonTemplate"), Generic_MT)
+	if AzeriteUI335_NormalizeButton then AzeriteUI335_NormalizeButton(button) end
 	button:RegisterForDrag("LeftButton", "RightButton")
 	if WoWRetail then
 		button:RegisterForClicks("AnyDown", "AnyUp")

@@ -64,7 +64,11 @@ ns.StanceButton.defaults = defaults
 
 ns.StanceButton.Create = function(id, name, header, buttonConfig)
 
-	local button = CreateFrame("CheckButton", name, header, "StanceButtonTemplate")
+	local okTpl, button = pcall(CreateFrame, "CheckButton", name, header, "StanceButtonTemplate")
+	if (not okTpl) or (not button) then
+		button = CreateFrame("CheckButton", name, header, "ShapeshiftButtonTemplate")
+	end
+	if AzeriteUI335_NormalizeButton then AzeriteUI335_NormalizeButton(button) end
 	button.id = id
 	button.parent = header
 	button.showgrid = 0

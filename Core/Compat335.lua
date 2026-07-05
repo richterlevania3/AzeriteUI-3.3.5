@@ -762,3 +762,209 @@ do
 		end
 	end
 end
+
+--------------------------------------------------------------
+-- Round 4 shims: action buttons, attribute drivers, stray globals
+--------------------------------------------------------------
+
+if not _G.UnitIsTapDenied then
+	_G.UnitIsTapDenied = function(unit)
+		return UnitIsTapped(unit) and not UnitIsTappedByPlayer(unit)
+	end
+end
+
+if not _G.IsPlayerInWorld then
+	_G.IsPlayerInWorld = function()
+		return not not UnitName("player")
+	end
+end
+
+if not _G.CompactRaidFrameManager_SetSetting then
+	_G.CompactRaidFrameManager_SetSetting = function() end
+end
+
+if not _G.SetDesaturation then
+	_G.SetDesaturation = function(texture, desaturated)
+		if texture and texture.SetDesaturated then
+			texture:SetDesaturated(desaturated)
+		end
+	end
+end
+
+-- retail-only manager frames some modules poke at; inert stand-ins
+for _, name in ipairs({ "NamePlateDriverFrame", "ActionBarController", "StatusTrackingBarManager" }) do
+	if not _G[name] then
+		local stub = CreateFrame("Frame", nil, UIParent)
+		stub:Hide()
+		_G[name] = stub
+	end
+end
+
+--------------------------------------------------------------
+-- Attribute drivers: the Ascension client lacks
+-- Register/UnregisterAttributeDriver. Reimplemented on top of
+-- SecureCmdOptionParse with event + poll based re-evaluation.
+--------------------------------------------------------------
+
+if not _G.RegisterAttributeDriver then
+	local drivers = {}   -- frame -> { attr -> conditional }
+	local values = {}    -- frame -> { attr -> last value }
+
+	local function resolve(v)
+		if v == "show" then return "show"
+		elseif v == "hide" then return "hide"
+		elseif v == "nil" or v == nil or v == "" then return nil
+		elseif tonumber(v) then return tonumber(v)
+		elseif v == "true" then return true
+		elseif v == "false" then return false
+		end
+		return v
+	end
+
+	local function evaluate()
+		for frame, attrs in pairs(drivers) do
+			for attr, cond in pairs(attrs) do
+				local v = SecureCmdOptionParse(cond)
+				local resolved = resolve(v)
+				if values[frame][attr] ~= resolved then
+					values[frame][attr] = resolved
+					frame:SetAttribute(attr, resolved)
+					-- visibility drivers act directly on 3.3.5, no secure env
+					if attr == "state-visibility" then
+						if resolved == "hide" then
+							frame:Hide()
+						elseif resolved == "show" then
+							frame:Show()
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local watcher = CreateFrame("Frame")
+	watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+	watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+	watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+	watcher:RegisterEvent("UPDATE_BONUS_ACTIONBAR")
+	watcher:RegisterEvent("ACTIONBAR_PAGE_CHANGED")
+	watcher:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
+	watcher:RegisterEvent("UPDATE_SHAPESHIFT_FORMS")
+	watcher:RegisterEvent("PLAYER_TARGET_CHANGED")
+	watcher:RegisterEvent("UNIT_PET")
+	watcher:RegisterEvent("PLAYER_AURAS_CHANGED")
+	watcher:SetScript("OnEvent", evaluate)
+
+	-- modifier keys and exotic conditionals need polling
+	local pollElapsed = 0
+	watcher:SetScript("OnUpdate", function(self, elapsed)
+		pollElapsed = pollElapsed + elapsed
+		if pollElapsed < 0.2 then return end
+		pollElapsed = 0
+		evaluate()
+	end)
+
+	_G.RegisterAttributeDriver = function(frame, attribute, conditional)
+		if not frame or not attribute then return end
+		drivers[frame] = drivers[frame] or {}
+		values[frame] = values[frame] or {}
+		drivers[frame][attribute] = conditional
+		values[frame][attribute] = "__uninitialized"
+		evaluate()
+	end
+
+	_G.UnregisterAttributeDriver = function(frame, attribute)
+		if not frame then return end
+		if drivers[frame] then
+			if attribute then
+				drivers[frame][attribute] = nil
+				if values[frame] then values[frame][attribute] = nil end
+				if not next(drivers[frame]) then
+					drivers[frame] = nil
+					values[frame] = nil
+				end
+			else
+				drivers[frame] = nil
+				values[frame] = nil
+			end
+		end
+	end
+
+	if not _G.RegisterStateDriver then
+		_G.RegisterStateDriver = function(frame, state, conditional)
+			return _G.RegisterAttributeDriver(frame, "state-" .. state, conditional)
+		end
+		_G.UnregisterStateDriver = function(frame, state)
+			return _G.UnregisterAttributeDriver(frame, "state-" .. state)
+		end
+	end
+end
+
+--------------------------------------------------------------
+-- Action button normalization: 3.3.5 templates create global-named
+-- children; retail code expects parentKey fields. Called by the
+-- patched LibActionButton / pet / stance button constructors.
+--------------------------------------------------------------
+
+function _G.AzeriteUI335_NormalizeButton(button)
+	if not button then return button end
+	local name = button.GetName and button:GetName()
+
+	local function child(suffix)
+		return name and _G[name .. suffix] or nil
+	end
+
+	button.icon = button.icon or child("Icon")
+	button.cooldown = button.cooldown or child("Cooldown")
+	button.Count = button.Count or child("Count")
+	button.HotKey = button.HotKey or child("HotKey")
+	button.Name = button.Name or child("Name")
+	button.Flash = button.Flash or child("Flash")
+	button.Border = button.Border or child("Border")
+	button.AutoCastable = button.AutoCastable or child("AutoCastable")
+	button.AutoCastShine = button.AutoCastShine or child("Shine") or child("AutoCast")
+
+	if button.GetNormalTexture then
+		button.NormalTexture = button.NormalTexture or button:GetNormalTexture()
+	end
+	if button.GetPushedTexture then
+		button.PushedTexture = button.PushedTexture or button:GetPushedTexture()
+	end
+	if button.GetHighlightTexture then
+		button.HighlightTexture = button.HighlightTexture or button:GetHighlightTexture()
+	end
+	if button.GetCheckedTexture then
+		button.CheckedTexture = button.CheckedTexture or button:GetCheckedTexture()
+	end
+
+	-- retail-only elements: inert stand-ins so unconditional access works
+	if not button.NewActionTexture then
+		local tex = button:CreateTexture(nil, "OVERLAY")
+		tex:Hide()
+		button.NewActionTexture = tex
+	end
+	if not button.SpellHighlightTexture then
+		local tex = button:CreateTexture(nil, "OVERLAY")
+		tex:Hide()
+		button.SpellHighlightTexture = tex
+	end
+	if not button.SpellHighlightAnim and button.CreateAnimationGroup then
+		button.SpellHighlightAnim = button:CreateAnimationGroup()
+	end
+	for _, key in ipairs({ "SlotBackground", "SlotArt", "IconMask", "CooldownFlash" }) do
+		if not button[key] then
+			local tex = button:CreateTexture(nil, "BACKGROUND")
+			tex:Hide()
+			button[key] = tex
+		end
+	end
+	for _, key in ipairs({ "TargetReticleAnimFrame", "SpellCastAnimFrame", "InterruptDisplay" }) do
+		if not button[key] then
+			local f = CreateFrame("Frame", nil, button)
+			f:Hide()
+			button[key] = f
+		end
+	end
+
+	return button
+end

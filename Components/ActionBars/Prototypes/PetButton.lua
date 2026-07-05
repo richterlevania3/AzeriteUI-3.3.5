@@ -77,6 +77,7 @@ end
 ns.PetButton.Create = function(id, name, header, buttonConfig)
 
 	local button = CreateFrame("CheckButton", name, header, "PetActionButtonTemplate")
+	if AzeriteUI335_NormalizeButton then AzeriteUI335_NormalizeButton(button) end
 	button.showgrid = 0
 	button.id = id
 	button.parent = header
