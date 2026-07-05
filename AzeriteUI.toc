@@ -11,7 +11,7 @@
 ## X-Wago-ID: R4N2PZKL
 ## X-License: Custom
 
-## SavedVariables: AzeriteUI5_DB
+## SavedVariables: AzeriteUI5_DB, AzeriteUI335_Log
 ## OptionalDeps: TaintLess, Ace3, Clique, LibKeyBound-1.0, LibHealComm-4.0, LibSharedMedia-3.0, !LibUIDropDownMenu, LibMoreEvents-1.0
 
 # Fontstyles
@@ -19,6 +19,7 @@ FontStyles_Classic.xml
 
 # 3.3.5 compatibility layer
 Core\Compat335.lua
+Core\Log335.lua
 
 # Protect the environment
 Core\Private.lua

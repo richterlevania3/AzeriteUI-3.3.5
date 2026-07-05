@@ -9,9 +9,19 @@ local Addon, ns = ...
 
 local _G = _G
 
--- Only act on the 3.3.5 client
-local tocversion = select(4, GetBuildInfo())
-if tocversion >= 40000 then return end
+-- All shims below are self-guarding (only fill in missing API), so this
+-- layer is safe on any client. The version is only used to gate the
+-- signature REWRAPS (UnitAura rank-drop), which must not run on clients
+-- that already use the modern signatures.
+local version, build, date, tocversion = GetBuildInfo()
+local isLegacy = (tocversion or 0) < 40000
+
+-- diagnostic report, readable via /azlog
+local report = {
+	version = version, build = build, tocversion = tocversion,
+	legacy = isLegacy,
+}
+_G.AzeriteUI335_Compat = report
 
 --------------------------------------------------------------
 -- Flavor flags: make the addon treat 3.3.5 as Wrath Classic
@@ -472,12 +482,11 @@ end
 -- modern signature (name, icon, count, ...) lines up
 --------------------------------------------------------------
 
-do
+if isLegacy then
 	local _UnitAura, _UnitBuff, _UnitDebuff = UnitAura, UnitBuff, UnitDebuff
 
-	-- detect: on 3.3.5 the second return is the rank string ("Rank 2" or "")
-	-- on modern clients it is the icon (a texture path/number).
-	-- 3.3.5 is anything below 40000, which we already know we are on.
+	-- on 3.3.5 the second return is the rank string, on modern clients
+	-- it is the icon; only rewrap on legacy clients
 
 	_G.UnitAura = function(unit, index, filter)
 		local name, _, icon, count, dtype, duration, expires, caster, stealable, consolidate, spellId = _UnitAura(unit, index, filter)
@@ -528,4 +537,26 @@ if not _G.CombatLogGetCurrentEventInfo then
 	_G.CombatLogGetCurrentEventInfo = function()
 		return unpack(current, 1, current.n or 11)
 	end
+end
+
+--------------------------------------------------------------
+-- Final state snapshot for diagnostics (/azlog)
+--------------------------------------------------------------
+
+report.state = {
+	WOW_PROJECT_ID = _G.WOW_PROJECT_ID,
+	ShowBossFrameWhenUninteractable = type(_G.ShowBossFrameWhenUninteractable),
+	C_Timer = type(_G.C_Timer),
+	C_AddOns = type(_G.C_AddOns),
+	IsInGroup = type(_G.IsInGroup),
+	UnitGetTotalAbsorbs = type(_G.UnitGetTotalAbsorbs),
+	CombatLogGetCurrentEventInfo = type(_G.CombatLogGetCurrentEventInfo),
+	SetShown = "n/a",
+}
+do
+	local f = CreateFrame("Frame")
+	report.state.SetShown = type(f.SetShown)
+	report.state.RegisterUnitEvent = type(f.RegisterUnitEvent)
+	local t = f:CreateTexture()
+	report.state.SetColorTexture = type(t.SetColorTexture)
 end
