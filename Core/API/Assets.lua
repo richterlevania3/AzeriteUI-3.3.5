@@ -51,6 +51,12 @@ font_mt = {
 			count = count + 1
 			local new = CreateFont(string_format(ns.Prefix.."Font%d", count))
 			new:SetJustifyH("LEFT") -- new fonts appear to be centered after 9.1.5
+			-- 3.3.5: an auto-created font object has no font file set and
+			-- SetText() on it hard-errors; give it a working default
+			if (not new:GetFont()) then
+				local path = _G.STANDARD_TEXT_FONT or [[Fonts\FRIZQT__.TTF]]
+				new:SetFont(path, k, "")
+			end
 			rawset(t,k,new)
 			return new
 		end

@@ -329,7 +329,15 @@ Auras.CreateBuffs = function(self)
 		-- Header
 		-----------------------------------------
 		-- The primary buff window.
-		local buffs = CreateFrame("Frame", ns.Prefix.."BuffHeader", frame, "SecureAuraHeaderTemplate")
+		-- The Ascension 3.3.5 client may lack SecureAuraHeaderTemplate;
+		-- bail out gracefully rather than killing the whole module chain.
+		local okHeader, buffs = pcall(CreateFrame, "Frame", ns.Prefix.."BuffHeader", frame, "SecureAuraHeaderTemplate")
+		if (not okHeader) or (not buffs) then
+			if (ns.Log335) then
+				ns.Log335("WARN", "SecureAuraHeaderTemplate unavailable, aura windows disabled")
+			end
+			return
+		end
 		buffs:UnregisterEvent("UNIT_AURA") -- blizzard registers for all units. we don't need that.
 		buffs:RegisterUnitEvent("UNIT_AURA", "player", "vehicle")
 		buffs:SetAttribute("unit", "player")

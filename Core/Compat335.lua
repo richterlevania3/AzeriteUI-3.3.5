@@ -681,3 +681,84 @@ do
 		end
 	end
 end
+
+--------------------------------------------------------------
+-- Round 3 shims
+--------------------------------------------------------------
+
+-- flat global used by Core/API/Addons.lua (modern signature: character, index)
+if not _G.GetAddOnEnableState then
+	_G.GetAddOnEnableState = function(character, index)
+		local _, _, _, enabled = GetAddOnInfo(index)
+		return enabled and 2 or 0
+	end
+end
+
+if not _G.IsPlayerAtEffectiveMaxLevel then
+	_G.IsPlayerAtEffectiveMaxLevel = function()
+		return UnitLevel("player") >= (MAX_PLAYER_LEVEL or 80)
+	end
+end
+
+-- retail strings referenced at file scope
+_G.FPS_ABBR = _G.FPS_ABBR or "fps"
+_G.HOME = _G.HOME or "Home"
+_G.WORLD = _G.WORLD or "World"
+_G.TUTORIAL_TITLE30 = _G.TUTORIAL_TITLE30 or "Resting"
+
+-- game error message types (used as blacklist table keys; the negative
+-- placeholders simply never match a real message type on 3.3.5)
+do
+	local i = 0
+	for _, name in ipairs({
+		"LE_GAME_ERR_ABILITY_COOLDOWN", "LE_GAME_ERR_SPELL_COOLDOWN",
+		"LE_GAME_ERR_SPELL_FAILED_ANOTHER_IN_PROGRESS",
+		"LE_GAME_ERR_OUT_OF_SOUL_SHARDS", "LE_GAME_ERR_OUT_OF_FOCUS",
+		"LE_GAME_ERR_OUT_OF_COMBO_POINTS", "LE_GAME_ERR_OUT_OF_HEALTH",
+		"LE_GAME_ERR_OUT_OF_RAGE", "LE_GAME_ERR_OUT_OF_RANGE",
+		"LE_GAME_ERR_OUT_OF_ENERGY",
+	}) do
+		if _G[name] == nil then
+			i = i - 1
+			_G[name] = i
+		end
+	end
+end
+
+-- region rotation (4.0+); accept and ignore
+do
+	local holder = CreateFrame("Frame")
+	for _, region in ipairs({ holder:CreateTexture(), holder:CreateFontString() }) do
+		local mt = getmetatable(region)
+		if mt and mt.__index and not mt.__index.SetRotation then
+			mt.__index.SetRotation = function() end
+			mt.__index.GetRotation = function() return 0 end
+		end
+	end
+end
+
+-- Alpha animation: 3.3.5 uses SetChange(delta), modern uses From/To
+do
+	local ok, ag = pcall(function()
+		return CreateFrame("Frame"):CreateAnimationGroup()
+	end)
+	if ok and ag then
+		local ok2, anim = pcall(ag.CreateAnimation, ag, "Alpha")
+		if ok2 and anim then
+			local mt = getmetatable(anim)
+			if mt and mt.__index and not mt.__index.SetFromAlpha then
+				mt.__index.SetFromAlpha = function(self, from)
+					self.__fromAlpha = from
+				end
+				mt.__index.SetToAlpha = function(self, to)
+					if self.SetChange then
+						self:SetChange(to - (self.__fromAlpha or 1))
+					end
+				end
+				mt.__index.GetFromAlpha = function(self)
+					return self.__fromAlpha or 1
+				end
+			end
+		end
+	end
+end
