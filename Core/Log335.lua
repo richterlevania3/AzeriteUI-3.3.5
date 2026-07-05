@@ -99,6 +99,29 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		self:UnregisterEvent("ADDON_LOADED")
 	elseif event == "PLAYER_LOGIN" then
 		log("INFO", "PLAYER_LOGIN reached")
+		-- automatic keyboard-grab scan: if input dies, the log still
+		-- shows the culprit without the user having to type anything
+		local function kbscan(tag)
+			local frame = EnumerateFrames()
+			local found = 0
+			while frame do
+				local ok, vis = pcall(frame.IsVisible, frame)
+				local ok2, kb = pcall(frame.IsKeyboardEnabled, frame)
+				if ok and ok2 and vis and kb then
+					found = found + 1
+					local name = frame.GetName and frame:GetName() or nil
+					log("KBSCAN", string.format("%s: %s (strata %s)", tag, name or "(anonymous)", frame:GetFrameStrata() or "?"))
+				end
+				frame = EnumerateFrames(frame)
+			end
+			if found == 0 then
+				log("KBSCAN", tag .. ": no visible keyboard-enabled frames")
+			end
+		end
+		if C_Timer and C_Timer.After then
+			C_Timer.After(5, function() kbscan("login+5s") end)
+			C_Timer.After(30, function() kbscan("login+30s") end)
+		end
 	end
 end)
 
