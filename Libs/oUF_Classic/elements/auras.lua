@@ -1,3 +1,4 @@
+local UnitAura, UnitBuff, UnitDebuff = AzeriteUI335_UnitAura or UnitAura, AzeriteUI335_UnitBuff or UnitBuff, AzeriteUI335_UnitDebuff or UnitDebuff
 --[[
 # Element: Auras
 

@@ -507,6 +507,26 @@ function SetupSecureSnippets(button)
 		return self:RunAttribute("PickupButton", buttonType, buttonAction)
 	]])
 
+	if AzeriteUI335_Compat and AzeriteUI335_Compat.legacy then
+		-- Ascension/3.3.5: the restricted environment cannot run these
+		-- snippets (handles lack RunAttribute); plain Lua drag handlers
+		-- work fine here since PickupAction/PlaceAction are unprotected.
+		button:SetScript("OnDragStart", function(self)
+			local kind, value = self:GetAction()
+			if kind ~= "action" or not value then return end
+			if GetCVar("lockActionBars") == "1" and not IsModifiedClick("PICKUPACTION") then return end
+			PickupAction(value)
+		end)
+		button:SetScript("OnReceiveDrag", function(self)
+			local kind, value = self:GetAction()
+			if kind ~= "action" or not value then return end
+			if GetCursorInfo() then
+				PlaceAction(value)
+			end
+		end)
+		return
+	end
+
 	button:SetScript("OnDragStart", nil)
 	-- Wrapped OnDragStart(self, button, kind, value, ...)
 	button.header:WrapScript(button, "OnDragStart", [[
@@ -539,6 +559,7 @@ function SetupSecureSnippets(button)
 end
 
 function WrapOnClick(button)
+	if AzeriteUI335_Compat and AzeriteUI335_Compat.legacy then return end
 	-- Wrap OnClick, to catch changes to actions that are applied with a click on the button.
 	button.header:WrapScript(button, "OnClick", [[
 		if self:GetAttribute("type") == "action" then

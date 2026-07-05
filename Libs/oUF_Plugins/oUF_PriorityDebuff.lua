@@ -39,7 +39,7 @@ local GetSpecialization = GetSpecialization
 local GetSpecializationInfo = GetSpecializationInfo
 local GetSpellInfo = GetSpellInfo
 local IsUsableSpell = IsUsableSpell
-local UnitAura = UnitAura
+local UnitAura = AzeriteUI335_UnitAura or UnitAura
 local UnitCanAttack = UnitCanAttack
 local UnitIsCharmed = UnitIsCharmed
 

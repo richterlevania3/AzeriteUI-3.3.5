@@ -475,23 +475,23 @@ end
 -- modern signature (name, icon, count, ...) lines up
 --------------------------------------------------------------
 
+-- Modern-signature UnitAura wrappers, namespaced so other addons keep
+-- the stock 3.3.5 signature (a global rewrap broke IceHUD and friends).
+-- AzeriteUI files are patched to use these via injected local aliases.
 if isLegacy then
 	local _UnitAura, _UnitBuff, _UnitDebuff = UnitAura, UnitBuff, UnitDebuff
 
-	-- on 3.3.5 the second return is the rank string, on modern clients
-	-- it is the icon; only rewrap on legacy clients
-
-	_G.UnitAura = function(unit, index, filter)
+	_G.AzeriteUI335_UnitAura = function(unit, index, filter)
 		local name, _, icon, count, dtype, duration, expires, caster, stealable, consolidate, spellId = _UnitAura(unit, index, filter)
 		return name, icon, count, dtype, duration, expires, caster, stealable, nil, spellId, false, false
 	end
 
-	_G.UnitBuff = function(unit, index, filter)
+	_G.AzeriteUI335_UnitBuff = function(unit, index, filter)
 		local name, _, icon, count, dtype, duration, expires, caster, stealable, consolidate, spellId = _UnitBuff(unit, index, filter)
 		return name, icon, count, dtype, duration, expires, caster, stealable, nil, spellId, false, false
 	end
 
-	_G.UnitDebuff = function(unit, index, filter)
+	_G.AzeriteUI335_UnitDebuff = function(unit, index, filter)
 		local name, _, icon, count, dtype, duration, expires, caster, stealable, consolidate, spellId = _UnitDebuff(unit, index, filter)
 		return name, icon, count, dtype, duration, expires, caster, stealable, nil, spellId, false, false
 	end
@@ -1088,4 +1088,9 @@ end
 
 if not _G.GroupLootContainer_Update then
 	_G.GroupLootContainer_Update = function() end
+end
+
+-- retail AlertFrame anatomy expected by the AlertFrames module
+if _G.AlertFrame and not _G.AlertFrame.alertFrameSubSystems then
+	_G.AlertFrame.alertFrameSubSystems = {}
 end
