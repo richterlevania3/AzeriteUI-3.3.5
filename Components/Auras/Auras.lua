@@ -558,6 +558,7 @@ end
 
 Auras.ForAll = function(self, method, ...)
 	local buffs = self.buffs
+	if (not buffs) then return end
 	if (not buffs) then
 		return
 	end
@@ -575,6 +576,7 @@ end
 
 Auras.UpdateAuraButtonAlpha = function(self)
 	local buffs = self.buffs
+	if (not buffs) then return end
 	if (not buffs) then return end
 
 	local consolidateDuration = tonumber(buffs:GetAttribute("consolidateDuration")) or 30
@@ -617,6 +619,8 @@ Auras.UpdateSettings = function(self)
 	if (not self.frame) then return end
 
 	local config = self.db.profile
+
+	if (not self.buffs) then return end
 
 	if (config.enabled and config.enableAuraFading) then
 		LFF:RegisterFrameForFading(self.frame, "playerauras")

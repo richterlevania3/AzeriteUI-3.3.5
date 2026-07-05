@@ -24,6 +24,9 @@
 
 --]]
 local _, ns = ...
+-- no nameplate API on 3.3.5, and the Ascension client has its own
+-- nameplate systems this module would fight with
+if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then return end
 local oUF = ns.oUF
 
 local NamePlatesMod = ns:NewModule("NamePlates", "LibMoreEvents-1.0", "AceHook-3.0", "AceTimer-3.0")

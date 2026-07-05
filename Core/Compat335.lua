@@ -968,3 +968,49 @@ function _G.AzeriteUI335_NormalizeButton(button)
 
 	return button
 end
+
+--------------------------------------------------------------
+-- Round 5 shims
+--------------------------------------------------------------
+
+-- texture mask API (7.2+); accept and ignore
+do
+	local holder = CreateFrame("Frame")
+	for _, region in ipairs({ holder:CreateTexture(), holder:CreateFontString() }) do
+		local mt = getmetatable(region)
+		if mt and mt.__index then
+			local idx = mt.__index
+			if not idx.GetMaskTexture then
+				idx.GetMaskTexture = function() return nil end
+				idx.GetNumMaskTextures = function() return 0 end
+				idx.AddMaskTexture = function() end
+				idx.RemoveMaskTexture = function() end
+			end
+			if not idx.SetMask then
+				idx.SetMask = function() end
+			end
+			-- method-style desaturation used by LibActionButton-GE
+			if not idx.SetDesaturation then
+				idx.SetDesaturation = function(self, amount)
+					if self.SetDesaturated then
+						self:SetDesaturated(amount and amount > 0)
+					end
+				end
+			end
+		end
+	end
+end
+
+-- FrameXML functions hooked unconditionally but absent on 3.3.5
+for _, name in ipairs({
+	"MainMenuMicroButton_ShowAlert",
+	"SharedTooltip_SetBackdropStyle",
+}) do
+	if not _G[name] then
+		_G[name] = function() end
+	end
+end
+
+-- retail strings
+_G.INFO = _G.INFO or "Info"
+_G.TIMEMANAGER_TITLE = _G.TIMEMANAGER_TITLE or "Time"
