@@ -1094,3 +1094,90 @@ end
 if _G.AlertFrame and not _G.AlertFrame.alertFrameSubSystems then
 	_G.AlertFrame.alertFrameSubSystems = {}
 end
+
+--------------------------------------------------------------
+-- State driver sanitizer
+--
+-- The Ascension parser evaluates UNKNOWN macro conditionals as TRUE,
+-- so retail-era clauses like "[petbattle]hide" turn every driver into
+-- a permanent hide. Wrap RegisterStateDriver: translate @unit syntax
+-- to wotlk form and drop clauses using unknown conditionals.
+--------------------------------------------------------------
+
+if isLegacy then
+	local known = {
+		combat = true, harm = true, help = true, exists = true, dead = true,
+		stealth = true, mounted = true, swimming = true, flying = true,
+		flyable = true, indoors = true, outdoors = true, party = true,
+		raid = true, group = true, pet = true, channeling = true,
+		equipped = true, worn = true, cursor = true, vehicleui = true,
+		unithasvehicleui = true, mod = true, modifier = true,
+		bar = true, actionbar = true, bonusbar = true, stance = true,
+		form = true, button = true, btn = true, target = true,
+		pettype = true, spec = false, petbattle = false, overridebar = false,
+		extrabar = false, possessbar = false, shapeshift = false,
+		canexitvehicle = false, dragonriding = false, bonusbar5 = false,
+	}
+
+	local function conditionKnown(token)
+		token = string.gsub(token, "^%s+", "")
+		token = string.gsub(token, "%s+$", "")
+		if token == "" then return true end
+		-- @unit is translated before this check
+		local base = string.match(token, "^no([%a@]+)") or token
+		base = string.match(base, "^([%a@]+)")
+		if not base then return true end
+		base = string.lower(base)
+		if string.sub(base, 1, 1) == "@" then return true end
+		local v = known[base]
+		if v == nil then return false end
+		return v
+	end
+
+	local function sanitizeDriver(driver)
+		if type(driver) ~= "string" or not string.find(driver, "%[") then
+			return driver
+		end
+		-- translate 4.x @unit shorthand to wotlk target=unit
+		driver = string.gsub(driver, "@([%w]+)", "target=%1")
+
+		local out = {}
+		for clause in string.gmatch(driver, "[^;]+") do
+			local conds = string.match(clause, "^%s*(%b[])")
+			local keep = true
+			if conds then
+				-- there may be several [..][..] groups per clause
+				for group in string.gmatch(clause, "%b[]") do
+					for token in string.gmatch(string.sub(group, 2, -2), "[^,]+") do
+						-- target=x tokens are fine
+						if not string.find(token, "=") and not conditionKnown(token) then
+							keep = false
+							break
+						end
+					end
+					if not keep then break end
+				end
+			end
+			if keep then
+				table.insert(out, clause)
+			end
+		end
+		local result = table.concat(out, ";")
+		if result == "" then result = driver end
+		return result
+	end
+	_G.AzeriteUI335_SanitizeDriver = sanitizeDriver
+
+	if _G.RegisterStateDriver then
+		local orig = _G.RegisterStateDriver
+		_G.RegisterStateDriver = function(frame, state, driver, ...)
+			return orig(frame, state, sanitizeDriver(driver), ...)
+		end
+	end
+	if _G.RegisterAttributeDriver then
+		local origA = _G.RegisterAttributeDriver
+		_G.RegisterAttributeDriver = function(frame, attribute, driver, ...)
+			return origA(frame, attribute, sanitizeDriver(driver), ...)
+		end
+	end
+end
