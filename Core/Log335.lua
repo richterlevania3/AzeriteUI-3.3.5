@@ -44,9 +44,10 @@ ns.Log335 = log
 --------------------------------------------------------------
 
 local seenErrors = {}
-local origHandler = geterrorhandler()
+local chainedHandler = geterrorhandler()
+local rawSetErrorHandler = seterrorhandler
 
-seterrorhandler(function(msg)
+local function trap(msg)
 	msg = tostring(msg)
 	local count = (seenErrors[msg] or 0) + 1
 	seenErrors[msg] = count
@@ -56,10 +57,21 @@ seterrorhandler(function(msg)
 	elseif count == 4 then
 		log("ERROR", "(suppressing further repeats) " .. msg)
 	end
-	if origHandler then
-		return origHandler(msg)
+	if chainedHandler and chainedHandler ~= trap then
+		return chainedHandler(msg)
 	end
-end)
+end
+
+rawSetErrorHandler(trap)
+
+-- the Ascension client (and addons like BugSack) replace the error handler
+-- after us; intercept seterrorhandler so they get CHAINED instead
+_G.seterrorhandler = function(handler)
+	if type(handler) == "function" and handler ~= trap then
+		chainedHandler = handler
+	end
+	rawSetErrorHandler(trap)
+end
 
 --------------------------------------------------------------
 -- Saved variable hookup
@@ -102,6 +114,12 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 		-- automatic keyboard-grab scan: if input dies, the log still
 		-- shows the culprit without the user having to type anything
 		local function kbscan(tag)
+			-- who actually has keyboard focus is the decisive answer
+			if GetCurrentKeyBoardFocus then
+				local focus = GetCurrentKeyBoardFocus()
+				local fname = focus and ((focus.GetName and focus:GetName()) or "(anonymous)") or "none"
+				log("KBSCAN", tag .. ": keyboard FOCUS = " .. fname)
+			end
 			local frame = EnumerateFrames()
 			local found = 0
 			while frame do
@@ -110,7 +128,14 @@ loader:SetScript("OnEvent", function(self, event, arg1)
 				if ok and ok2 and vis and kb then
 					found = found + 1
 					local name = frame.GetName and frame:GetName() or nil
-					log("KBSCAN", string.format("%s: %s (strata %s)", tag, name or "(anonymous)", frame:GetFrameStrata() or "?"))
+					local parent = frame.GetParent and frame:GetParent()
+					local pname = parent and ((parent.GetName and parent:GetName()) or "(anon parent)") or "none"
+					local w = (frame.GetWidth and frame:GetWidth()) or -1
+					local h = (frame.GetHeight and frame:GetHeight()) or -1
+					log("KBSCAN", string.format("%s: %s [%dx%d] parent=%s strata=%s objtype=%s",
+						tag, name or "(anonymous)", w, h, pname,
+						frame:GetFrameStrata() or "?",
+						(frame.GetObjectType and frame:GetObjectType()) or "?"))
 				end
 				frame = EnumerateFrames(frame)
 			end
