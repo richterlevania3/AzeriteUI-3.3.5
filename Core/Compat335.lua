@@ -792,7 +792,20 @@ if not _G.SetDesaturation then
 end
 
 -- retail-only manager frames some modules poke at; inert stand-ins
-for _, name in ipairs({ "NamePlateDriverFrame", "ActionBarController", "StatusTrackingBarManager" }) do
+-- NamePlateDriverFrame gets called by other addons too (Ascension's own
+-- nameplates), with methods we cannot predict: auto-noop ANY method
+if not _G.NamePlateDriverFrame then
+	local noops = {}
+	_G.NamePlateDriverFrame = setmetatable({}, {
+		__index = function(t, k)
+			local f = noops[k] or function() end
+			noops[k] = f
+			return f
+		end,
+	})
+end
+
+for _, name in ipairs({ "ActionBarController", "StatusTrackingBarManager", "GroupLootContainer" }) do
 	if not _G[name] then
 		local stub = CreateFrame("Frame", nil, UIParent)
 		stub:Hide()
