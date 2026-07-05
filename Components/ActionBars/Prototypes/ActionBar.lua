@@ -425,7 +425,9 @@ ActionBar.ApplyPageLua = function(self, newstate)
 	if (self.buttons) then
 		for id, button in next, self.buttons do
 			button:SetAttribute("state", newstate)
-			if (button.UpdateAction) then
+			if (button.UpdateState) then
+				button:UpdateState(newstate)
+			elseif (button.UpdateAction) then
 				button:UpdateAction(true)
 			end
 		end

@@ -725,6 +725,16 @@ function Generic:UpdateState(state)
 			local frame = self:GetFrameRef("updateButton")
 			control:RunFor(frame, frame:GetAttribute("UpdateState"), frame:GetAttribute("state"))
 		]])
+	elseif (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy) then
+		-- the secure snippet that maps labaction-<state> to the plain
+		-- "action" attribute cannot run here; do it from Lua so the
+		-- secure click handler actually has an action to use
+		if state == tostring(self:GetAttribute("state")) and not InCombatLockdown() then
+			local kind, action = self:GetAction(state)
+			if kind == "action" then
+				self:SetAttribute("action", action or 0)
+			end
+		end
 	end
 	self:UpdateAction()
 end
@@ -1186,11 +1196,9 @@ function Generic:PreClick()
 	then
 		local kind = GetCursorInfo()
 		if kind and self._state_action then
-			self._old_type = self:GetAttribute("type")
+			self._legacy_old_type = self:GetAttribute("type")
 			self:SetAttribute("type", "empty")
-			self._receiving_drag = true
 			PlaceAction(self._state_action)
-			self:UpdateAction(true)
 			return
 		end
 	end
@@ -1222,6 +1230,13 @@ end
 function Generic:PostClick(button, down)
 	UpdateButtonState(self)
 	UpdateFlyout(self, down)
+	if self._legacy_old_type then
+		if not InCombatLockdown() then
+			self:SetAttribute("type", self._legacy_old_type)
+		end
+		self._legacy_old_type = nil
+		self:UpdateAction(true)
+	end
 	if self._receiving_drag and not InCombatLockdown() then
 		if self._old_type then
 			self:SetAttribute("type", self._old_type)
