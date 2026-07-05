@@ -96,6 +96,14 @@ registering events.
              matched to the frame unit(s). Obligatory for unitless event (boolean)
 --]]
 function frame_metatable.__index:RegisterEvent(event, func, unitless)
+	-- 3.3.5: translate renamed unit events to their old names
+	local mapped = AzeriteUI335_EventMap and AzeriteUI335_EventMap[event]
+	if(mapped) then
+		for i = 1, #mapped do
+			self:RegisterEvent(mapped[i], func, unitless)
+		end
+		return
+	end
 	-- Block OnUpdate polled frames from registering events except for
 	-- UNIT_PORTRAIT_UPDATE and UNIT_MODEL_CHANGED which are used for
 	-- portrait updates.
@@ -165,6 +173,13 @@ Used to remove a function from the event handler list for a game event.
           the frame will be unregistered for the event (function)
 --]]
 function frame_metatable.__index:UnregisterEvent(event, func)
+	local mapped = AzeriteUI335_EventMap and AzeriteUI335_EventMap[event]
+	if(mapped) then
+		for i = 1, #mapped do
+			self:UnregisterEvent(mapped[i], func)
+		end
+		return
+	end
 	argcheck(event, 2, 'string')
 
 	local cleanUp = false

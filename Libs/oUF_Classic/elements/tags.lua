@@ -764,13 +764,25 @@ local function getTagFunc(tagstr)
 	return func
 end
 
-local function registerEvent(fontstr, event)
+local function registerEventRaw(fontstr, event)
 	if(not events[event]) then events[event] = {} end
 
 	local isOK = xpcall(eventFrame.RegisterEvent, eventFrame, event)
 	if(isOK) then
 		table.insert(events[event], fontstr)
 	end
+end
+
+local function registerEvent(fontstr, event)
+	-- 3.3.5: translate renamed unit events to their old names
+	local mapped = AzeriteUI335_EventMap and AzeriteUI335_EventMap[event]
+	if(mapped) then
+		for i = 1, #mapped do
+			registerEventRaw(fontstr, mapped[i])
+		end
+		return
+	end
+	registerEventRaw(fontstr, event)
 end
 
 local function registerEvents(fontstr, tagstr)

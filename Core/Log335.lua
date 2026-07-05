@@ -239,6 +239,16 @@ barscanner:SetScript("OnEvent", function(self)
 		probe:SetAttribute("state-vis", "test")
 		log("BARSCAN", "HookScript OnAttributeChanged fires on SetAttribute: " .. fired)
 
+		-- hotkey binding chain check
+		local kbt = "ACTIONBUTTON1"
+		local key = GetBindingKey(kbt)
+		if key then
+			local action = GetBindingAction and GetBindingAction(key, true) or "n/a"
+			log("BARSCAN", string.format("key %s for %s resolves to: %s", key, kbt, tostring(action)))
+		else
+			log("BARSCAN", "no key bound to ACTIONBUTTON1")
+		end
+
 		local mod = ns.GetModule and ns:GetModule("ActionBars", true)
 		local bars = mod and mod.bars
 		if not bars then

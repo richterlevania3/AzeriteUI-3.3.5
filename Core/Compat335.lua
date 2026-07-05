@@ -1181,3 +1181,14 @@ if isLegacy then
 		end
 	end
 end
+
+-- renamed unit events: modern name -> 3.3.5 equivalents
+-- (consumed by the patched oUF event registration)
+if isLegacy then
+	_G.AzeriteUI335_EventMap = {
+		UNIT_HEALTH_FREQUENT = { "UNIT_HEALTH" },
+		UNIT_POWER_UPDATE = { "UNIT_MANA", "UNIT_RAGE", "UNIT_ENERGY", "UNIT_FOCUS", "UNIT_RUNIC_POWER", "UNIT_HAPPINESS" },
+		UNIT_POWER_FREQUENT = { "UNIT_MANA", "UNIT_RAGE", "UNIT_ENERGY", "UNIT_FOCUS", "UNIT_RUNIC_POWER", "UNIT_HAPPINESS" },
+		UNIT_MAXPOWER = { "UNIT_MAXMANA", "UNIT_MAXRAGE", "UNIT_MAXENERGY", "UNIT_MAXFOCUS", "UNIT_MAXRUNIC_POWER", "UNIT_MAXHAPPINESS" },
+	}
+end

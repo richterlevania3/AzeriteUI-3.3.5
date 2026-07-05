@@ -1178,6 +1178,22 @@ end
 -- Insecure drag handler to allow clicking on the button with an action on the cursor
 -- to place it on the button. Like action buttons work.
 function Generic:PreClick()
+	-- legacy: retail handles drops on action buttons in the secure OnClick
+	-- wrap, which cannot run here; place the cursor contents directly
+	if (AzeriteUI335_Compat and AzeriteUI335_Compat.legacy)
+	   and self._state_type == "action" and not InCombatLockdown()
+	   and not self:GetAttribute("LABdisableDragNDrop")
+	then
+		local kind = GetCursorInfo()
+		if kind and self._state_action then
+			self._old_type = self:GetAttribute("type")
+			self:SetAttribute("type", "empty")
+			self._receiving_drag = true
+			PlaceAction(self._state_action)
+			self:UpdateAction(true)
+			return
+		end
+	end
 	if self._state_type == "action" or self._state_type == "pet"
 	   or InCombatLockdown() or self:GetAttribute("LABdisableDragNDrop")
 	then
