@@ -251,6 +251,10 @@ MicroMenu.SpawnButtons = function(self)
 
 			local text = button:CreateFontString(nil, "OVERLAY")
 			text:SetFontObject(GetFont(13,true))
+			if (not text:GetFont()) then
+				-- 3.3.5/Ascension: custom font object may fail to resolve
+				text:SetFontObject(GameFontNormal)
+			end
 			text:SetText(labels[microButton:GetName()])
 			text:SetJustifyH("CENTER")
 			text:SetJustifyV("MIDDLE")

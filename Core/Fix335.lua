@@ -19,12 +19,15 @@ local log = ns.Log335 or function() end
 --------------------------------------------------------------
 
 local guard = CreateFrame("Frame")
+local hider = CreateFrame("Frame")
+hider:Hide()
+
 local elapsed = 0
-local reported = {}
+local neutered = {}
 
 guard:SetScript("OnUpdate", function(self, e)
 	elapsed = elapsed + e
-	if elapsed < 1 then return end
+	if elapsed < 0.2 then return end
 	elapsed = 0
 
 	if not GetCurrentKeyBoardFocus then return end
@@ -35,13 +38,23 @@ guard:SetScript("OnUpdate", function(self, e)
 	local w = (focus.GetWidth and focus:GetWidth()) or 0
 	local h = (focus.GetHeight and focus:GetHeight()) or 0
 	if w < 2 and h < 2 then
+		-- ClearFocus alone is not enough: the client re-focuses this box.
+		-- Reparent it under a permanently hidden frame so it can never
+		-- receive keyboard focus again.
 		if focus.ClearFocus then
 			focus:ClearFocus()
-			if not reported[focus] then
-				reported[focus] = true
-				local name = (focus.GetName and focus:GetName()) or "(anonymous)"
-				log("FIX", "cleared phantom keyboard focus from 0x0 editbox " .. name)
-			end
+		end
+		if not neutered[focus] then
+			neutered[focus] = true
+			local name = (focus.GetName and focus:GetName()) or "(anonymous)"
+			local ok = pcall(function()
+				focus:SetParent(hider)
+				focus:EnableKeyboard(false)
+				if focus.HookScript then
+					focus:HookScript("OnEditFocusGained", function(self) self:ClearFocus() end)
+				end
+			end)
+			log("FIX", string.format("neutered phantom focus editbox %s (reparent=%s)", name, tostring(ok)))
 		end
 	end
 end)

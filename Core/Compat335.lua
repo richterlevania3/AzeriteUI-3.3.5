@@ -188,27 +188,39 @@ end
 
 --------------------------------------------------------------
 -- C_* namespaces
+-- The Ascension client ships partial backports of some namespaces,
+-- so fill in missing FIELDS instead of only creating whole tables.
 --------------------------------------------------------------
 
-if not _G.C_AddOns then
-	_G.C_AddOns = {
-		GetAddOnMetadata = GetAddOnMetadata,
-		GetNumAddOns = GetNumAddOns,
-		GetAddOnInfo = GetAddOnInfo,
-		IsAddOnLoaded = IsAddOnLoaded,
-		LoadAddOn = LoadAddOn,
-		EnableAddOn = EnableAddOn,
-		DisableAddOn = DisableAddOn,
-		GetAddOnEnableState = function(addon, character)
-			-- modern: (name, character) returns 0/1/2
-			local _, _, _, enabled, loadable = GetAddOnInfo(addon)
-			return enabled and 2 or 0
-		end,
-	}
+local function fillNamespace(name, defaults)
+	local t = _G[name]
+	if type(t) ~= "table" then
+		_G[name] = defaults
+		return
+	end
+	for k, v in pairs(defaults) do
+		if t[k] == nil then
+			t[k] = v
+		end
+	end
 end
 
-if not _G.C_CVar then
-	_G.C_CVar = {
+fillNamespace("C_AddOns", {
+	GetAddOnMetadata = GetAddOnMetadata,
+	GetNumAddOns = GetNumAddOns,
+	GetAddOnInfo = GetAddOnInfo,
+	IsAddOnLoaded = IsAddOnLoaded,
+	LoadAddOn = LoadAddOn,
+	EnableAddOn = EnableAddOn,
+	DisableAddOn = DisableAddOn,
+	GetAddOnEnableState = function(addon, character)
+		-- modern: (name, character) returns 0/1/2
+		local _, _, _, enabled, loadable = GetAddOnInfo(addon)
+		return enabled and 2 or 0
+	end,
+})
+
+fillNamespace("C_CVar", {
 		GetCVar = GetCVar,
 		SetCVar = SetCVar,
 		GetCVarBool = function(name)
@@ -216,11 +228,9 @@ if not _G.C_CVar then
 			return v == "1"
 		end,
 		GetCVarDefault = GetCVarDefault,
-	}
-end
+})
 
-if not _G.C_Container then
-	_G.C_Container = {
+fillNamespace("C_Container", {
 		GetContainerNumSlots = GetContainerNumSlots,
 		GetContainerItemInfo = GetContainerItemInfo,
 		GetContainerItemLink = GetContainerItemLink,
@@ -230,18 +240,14 @@ if not _G.C_Container then
 		SetInsertItemsLeftToRight = function() end,
 		SortBags = function() end,
 		SortBankBags = function() end,
-	}
-end
+})
 
-if not _G.C_NamePlate then
-	_G.C_NamePlate = {
+fillNamespace("C_NamePlate", {
 		GetNamePlateForUnit = function() return nil end,
 		GetNamePlates = function() return {} end,
-	}
-end
+})
 
-if not _G.C_UnitAuras then
-	_G.C_UnitAuras = {
+fillNamespace("C_UnitAuras", {
 		GetCooldownAuraBySpellID = function() return nil end,
 		GetAuraDataByAuraInstanceID = function() return nil end,
 		GetPlayerAuraBySpellID = function() return nil end,
@@ -250,50 +256,37 @@ if not _G.C_UnitAuras then
 		GetAuraDataByIndex = function() return nil end,
 		GetAuraDataBySlot = function() return nil end,
 		GetAuraSlots = function() return nil end,
-	}
-end
+})
 
-if not _G.C_Reputation then
-	_G.C_Reputation = {
+fillNamespace("C_Reputation", {
 		IsFactionParagon = function() return false end,
 		IsMajorFaction = function() return false end,
 		GetFactionParagonInfo = function() return nil end,
-	}
-end
+})
 
-if not _G.C_GossipInfo then
-	_G.C_GossipInfo = {
+fillNamespace("C_GossipInfo", {
 		GetFriendshipReputation = function() return nil end,
-	}
-end
+})
 
-if not _G.C_PvP then
-	_G.C_PvP = {
+fillNamespace("C_PvP", {
 		IsSoloShuffle = function() return false end,
 		GetHonorRewardInfo = function() return nil end,
-	}
-end
+})
 
-if not _G.C_PaperDollInfo then
-	_G.C_PaperDollInfo = {
+fillNamespace("C_PaperDollInfo", {
 		OffhandHasWeapon = function()
 			local link = GetInventoryItemLink("player", 17)
 			return link ~= nil
 		end,
-	}
-end
+})
 
-if not _G.C_ActionBar then
-	_G.C_ActionBar = {
+fillNamespace("C_ActionBar", {
 		GetItemActionOnEquipSpellID = function() return nil end,
-	}
-end
+})
 
-if not _G.C_LevelLink then
-	_G.C_LevelLink = {
+fillNamespace("C_LevelLink", {
 		IsActionLocked = function() return false end,
-	}
-end
+})
 
 --------------------------------------------------------------
 -- Modern globals missing on 3.3.5
@@ -559,4 +552,132 @@ do
 	report.state.RegisterUnitEvent = type(f.RegisterUnitEvent)
 	local t = f:CreateTexture()
 	report.state.SetColorTexture = type(t.SetColorTexture)
+end
+
+--------------------------------------------------------------
+-- Round 2 shims (driven by in-game error list on Ascension)
+--------------------------------------------------------------
+
+-- AceDB-GE region detection
+if not _G.GetCurrentRegion then
+	_G.GetCurrentRegion = function() return 1 end
+end
+if not _G.GetCurrentRegionName then
+	_G.GetCurrentRegionName = function() return "US" end
+end
+
+if not _G.UnitNameUnmodified then
+	_G.UnitNameUnmodified = UnitName
+end
+
+-- oUF detaches the Blizzard castbar through this 4.x helper
+if not _G.CastingBarFrame_SetUnit then
+	_G.CastingBarFrame_SetUnit = function(frame, unit, showTradeSkills, showShield)
+		if not frame then return end
+		frame.unit = unit
+		frame.showTradeSkills = showTradeSkills
+		frame.showShield = showShield
+		if not unit then
+			frame:Hide()
+			frame:UnregisterAllEvents()
+		end
+	end
+end
+
+-- LibActionButton hooksecurefunc targets that never existed on 3.3.5
+for _, name in ipairs({
+	"UpdateOnBarHighlightMarksBySpell",
+	"UpdateOnBarHighlightMarksByFlyout",
+	"UpdateOnBarHighlightMarksByPetAction",
+	"ClearOnBarHighlightMarks",
+	"ActionBarController_UpdateAllSpellHighlights",
+	"ActionButton_UpdateFlyout",
+}) do
+	if not _G[name] then
+		_G[name] = function() end
+	end
+end
+
+-- ColorMixin / CreateColor (oUF colors.lua)
+if not _G.ColorMixin then
+	_G.ColorMixin = {
+		SetRGBA = function(self, r, g, b, a)
+			self.r, self.g, self.b, self.a = r, g, b, a
+		end,
+		SetRGB = function(self, r, g, b)
+			self.r, self.g, self.b = r, g, b
+		end,
+		GetRGB = function(self)
+			return self.r, self.g, self.b
+		end,
+		GetRGBA = function(self)
+			return self.r, self.g, self.b, self.a
+		end,
+		GetRGBAsBytes = function(self)
+			return math.floor(self.r * 255 + 0.5), math.floor(self.g * 255 + 0.5), math.floor(self.b * 255 + 0.5)
+		end,
+		IsEqualTo = function(self, other)
+			return other and self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a
+		end,
+		GenerateHexColor = function(self)
+			return string.format("ff%02x%02x%02x", math.floor(self.r * 255 + 0.5), math.floor(self.g * 255 + 0.5), math.floor(self.b * 255 + 0.5))
+		end,
+		GenerateHexColorMarkup = function(self)
+			return "|c" .. self:GenerateHexColor()
+		end,
+		WrapTextInColorCode = function(self, text)
+			return "|c" .. self:GenerateHexColor() .. tostring(text) .. "|r"
+		end,
+	}
+end
+if not _G.CreateColor then
+	_G.CreateColor = function(r, g, b, a)
+		local color = Mixin({}, ColorMixin)
+		color:SetRGBA(r, g, b, a)
+		return color
+	end
+end
+
+-- Second widget metatable pass: IsForbidden, SetIgnoreParentScale,
+-- region SetScale (all missing on 3.3.5, some used by MovableFrameManager
+-- and the ring status bars)
+do
+	local function extendAll(mt)
+		if not mt.IsForbidden then
+			mt.IsForbidden = function() return false end
+		end
+		if not mt.SetIgnoreParentScale then
+			mt.SetIgnoreParentScale = function() end
+			mt.IsIgnoringParentScale = function() return false end
+		end
+	end
+
+	local seen = {}
+	for _, wtype in ipairs({
+		"Frame", "Button", "CheckButton", "StatusBar", "Slider", "EditBox",
+		"ScrollFrame", "Cooldown", "MessageFrame", "PlayerModel", "Model",
+		"ScrollingMessageFrame", "SimpleHTML", "ColorSelect", "GameTooltip",
+	}) do
+		local ok, frame = pcall(CreateFrame, wtype)
+		if ok and frame then
+			local mt = getmetatable(frame)
+			if mt and mt.__index and not seen[mt.__index] then
+				seen[mt.__index] = true
+				extendAll(mt.__index)
+			end
+		end
+	end
+
+	local holder = CreateFrame("Frame")
+	for _, region in ipairs({ holder:CreateTexture(), holder:CreateFontString() }) do
+		local mt = getmetatable(region)
+		if mt and mt.__index then
+			extendAll(mt.__index)
+			if not mt.__index.SetScale then
+				-- regions cannot scale independently on 3.3.5; accept and ignore
+				mt.__index.SetScale = function() end
+				mt.__index.GetScale = function() return 1 end
+			end
+		end
+	end
 end
